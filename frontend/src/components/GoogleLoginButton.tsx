@@ -1,7 +1,8 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { GraduationCap } from "lucide-react";
 import { apiPost } from "@/lib/api";
 import { beginSession } from "@/lib/session";
 import { errMsg } from "@/lib/helpers";
@@ -34,16 +35,18 @@ function loadGsi(): Promise<void> {
   });
 }
 
-export default function GoogleLoginButton() {
-  const ref = useRef<HTMLDivElement>(null);
+export default function GoogleLoginButton({ label = "Entrar com conta institucional UFPA" }: { label?: string }) {
+  const wrapRef = useRef<HTMLDivElement>(null);
+  const googleRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
   const qc = useQueryClient();
+  const [hover, setHover] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
     loadGsi()
       .then(() => {
-        if (cancelled || !ref.current) return;
+        if (cancelled || !googleRef.current || !wrapRef.current) return;
         window.google.accounts.id.initialize({
           client_id: CLIENT_ID,
           callback: async ({ credential }: { credential: string }) => {
@@ -58,10 +61,13 @@ export default function GoogleLoginButton() {
             }
           },
         });
-        window.google.accounts.id.renderButton(ref.current, {
-          theme: "outline",
+        const width = Math.min(400, Math.max(200, Math.round(wrapRef.current.offsetWidth)));
+        window.google.accounts.id.renderButton(googleRef.current, {
+          theme: "filled_blue",
           size: "large",
           text: "signin_with",
+          shape: "rectangular",
+          width,
           locale: "pt-BR",
         });
       })
@@ -71,5 +77,29 @@ export default function GoogleLoginButton() {
     };
   }, [navigate, qc]);
 
-  return <div ref={ref} data-testid="google-login-button" />;
+  return (
+    <div
+      ref={wrapRef}
+      className="relative h-12 w-full overflow-hidden rounded-lg"
+      onMouseEnter={() => setHover(true)}
+      onMouseLeave={() => setHover(false)}
+      data-testid="google-login-button"
+    >
+      {/* Botão visível, no padrão do site */}
+      <div
+        aria-hidden
+        className={`pointer-events-none flex h-full w-full items-center justify-center gap-2 text-base font-semibold text-slate-950 transition-colors ${
+          hover ? "bg-emerald-400" : "bg-emerald-500"
+        }`}
+      >
+        <GraduationCap className="size-5" />
+        {label}
+      </div>
+      {/* Botão oficial do Google, invisível, por cima: recebe o clique */}
+      <div
+        ref={googleRef}
+        className="absolute inset-0 flex items-center justify-center overflow-hidden opacity-[0.01]"
+      />
+    </div>
+  );
 }
